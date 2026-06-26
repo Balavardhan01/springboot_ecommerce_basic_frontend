@@ -1,109 +1,131 @@
-import React, { useEffect, useState } from "react";
-import Home from "./Home"
-import axios from "axios";
-
-const Navbar = ({ onSelectCategory, onSearch }) => {
-  const getInitialTheme = () => {
-    const storedTheme = localStorage.getItem("theme");
-    return storedTheme ? storedTheme : "light-theme";
-  }; 
-
-  const [theme, setTheme] = useState(getInitialTheme());
-  
-
-  
-  const toggleTheme = () => {
-    const newTheme = theme === "dark-theme" ? "light-theme" : "dark-theme";
-    setTheme(newTheme);
-    localStorage.setItem("theme", newTheme);
-  };
+import { useNavigate, useParams } from "react-router-dom";
+import { useContext, useEffect } from "react";
+import { useState } from "react";
+import AppContext from "../Context/Context";
+import axios from "../axios";
+// import UpdateProduct from "./UpdateProduct";
+const Product = () => {
+  const { id } = useParams();
+  const { data, addToCart, removeFromCart, cart, refreshData } =
+    useContext(AppContext);
+  const [product, setProduct] = useState(null);
+  const [imageUrl, setImageUrl] = useState("");
+  const navigate = useNavigate();
 
   useEffect(() => {
-    document.body.className = theme;
-  }, [theme]);
+    const fetchProduct = async () => {
+      try {
+        const response = await axios.get(
+          `http://localhost:8080/api/product/${id}`
+        );
+        setProduct(response.data);
+        if (response.data.imageName) {
+          fetchImage();
+        }
+      } catch (error) {
+        console.error("Error fetching product:", error);
+      }
+    };
 
-  
+    const fetchImage = async () => {
+      const response = await axios.get(
+        `http://localhost:8080/api/product/${id}/image`,
+        { responseType: "blob" }
+      );
+      setImageUrl(URL.createObjectURL(response.data));
+    };
+
+    fetchProduct();
+  }, [id]);
+
+  const deleteProduct = async () => {
+    try {
+      await axios.delete(`http://localhost:8080/api/product/${id}`);
+      removeFromCart(id);
+      console.log("Product deleted successfully");
+      alert("Product deleted successfully");
+      refreshData();
+      navigate("/");
+    } catch (error) {
+      console.error("Error deleting product:", error);
+    }
+  };
+
+  const handleEditClick = () => {
+    navigate(`/product/update/${id}`);
+  };
+
+  const handlAddToCart = () => {
+    addToCart(product);
+    alert("Product added to cart");
+  };
+  if (!product) {
+    return (
+      <h2 className="text-center" style={{ padding: "10rem" }}>
+        Loading...
+      </h2>
+    );
+  }
   return (
     <>
-      <header>
-        <nav className="navbar navbar-expand-lg fixed-top">
-          <div className="container-fluid">
-            <a className="navbar-brand" href="https://telusko.com/">
-              Telusko
-            </a>
-            <button
-              className="navbar-toggler"
-              type="button"
-              data-bs-toggle="collapse"
-              data-bs-target="#navbarSupportedContent"
-              aria-controls="navbarSupportedContent"
-              aria-expanded="false"
-              aria-label="Toggle navigation"
-            >
-              <span className="navbar-toggler-icon"></span>
-            </button>
-            <div
-              className="collapse navbar-collapse"
-              id="navbarSupportedContent"
-            >
-              <ul className="navbar-nav me-auto mb-2 mb-lg-0">
-                <li className="nav-item">
-                  <a className="nav-link active" aria-current="page" href="/">
-                    Home
-                  </a>
-                </li>
-                <li className="nav-item">
-                  <a className="nav-link" href="/add_product">
-                    Add Product
-                  </a>
-                </li>
+      <div className="containers">
+        <img
+          className="left-column-img"
+          src={imageUrl}
+          alt={product.imageName}
+        />
 
-                {/* < className="nav-item dropdown"> */}
-                  <a
-                    className="nav-link dropdown-toggle"
-                    href="/"
-                    role="button"
-                    data-bs-toggle="dropdown"
-                    aria-expanded="false"
-                  >
-                    Categories
-                  </a>
-
-                
-
-                <li className="nav-item"></li>
-              </ul>
-              <button className="theme-btn" onClick={() => toggleTheme()}>
-                {theme === "dark-theme" ? (
-                  <i className="bi bi-moon-fill"></i>
-                ) : (
-                  <i className="bi bi-sun-fill"></i>
-                )}
-              </button>
-              <div className="d-flex align-items-center cart">
-                <a href="/cart" className="nav-link text-dark">
-                  <i
-                    className="bi bi-cart me-2"
-                    style={{ display: "flex", alignItems: "center" }}
-                  >
-                    Cart
-                  </i>
-                </a>
-              
-                <input
-                  className="form-control me-2"
-                  type="search"
-                  placeholder="Search"
-                  aria-label="Search"                
-                />
-                <div />
-              </div>
-            </div>
+        <div className="right-column">
+          <div className="product-description">
+            <span>{product.category}</span>
+            <h1>{product.name}</h1>
+            <h5>{product.brand}</h5>
+            <p>{product.desc}</p>
           </div>
-        </nav>
-      </header>
+
+          <div className="product-price">
+            <span>{"$" + product.price}</span>
+            <button
+              className={`cart-btn ${
+                !product.available ? "disabled-btn" : ""
+              }`}
+              onClick={handlAddToCart}
+              disabled={!product.available}
+            >
+              {product.available ? "Add to cart" : "Out of Stock"}
+            </button>
+            <h6>
+              Stock Available :{" "}
+              <i style={{ color: "green", fontWeight: "bold" }}>
+                {product.stockQuantity}
+              </i>
+            </h6>
+            <p className="release-date">
+              <h6>Product listed on:</h6>
+              <i> {new Date(product.releaseDate).toLocaleDateString()}</i>
+            </p>
+          </div>
+          {/* <div className="update-button ">
+            <button
+              className="btn btn-primary"
+              type="button"
+              onClick={handleEditClick}
+            >
+              Update
+            </button>
+        
+            <button
+              className="btn btn-primary"
+              type="button"
+              onClick={deleteProduct}
+            >
+              Delete
+            </button>
+          </div> */}
+        </div>
+      </div>
     </>
   );
 };
 
-export default Navbar;
+export default Product;
